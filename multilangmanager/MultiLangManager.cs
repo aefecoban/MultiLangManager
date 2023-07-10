@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using UnityEngine;
 using System.Linq;
 using System;
-using System.Threading;
 
 /*
 
@@ -16,9 +15,9 @@ using System.Threading;
 public enum FileLocationType
 {
     StreamingAssets
-    // Custom :TODO
+    // Custom = Bu seçenek daha sonra programlanacaktır.
 }
-public class MultiLangManager : MonoBehaviour
+public class MultiLangManager : MonoBehaviour, IMultiLangSubject
 {
 
     private static MultiLangManager instance;
@@ -30,12 +29,15 @@ public class MultiLangManager : MonoBehaviour
         }
     }
 
-    [Header("Settings")]
+    [Header("Observers")]
+    public List<IMultiLangObserver> observers = new List<IMultiLangObserver>();
+
+    [Header("Ayarlar")]
     [SerializeField] FileLocationType FileLocationType = FileLocationType.StreamingAssets;
-    [Tooltip("Specifies the folder path in Streaming Assets.")]
+    [Tooltip("Streaming Assets içinde klasör yolunu belirtir.")]
     [SerializeField] string Location = "i18n";
     [Space]
-    [Tooltip("Selects the language of the system when the game starts.")]
+    [Tooltip("Oyun başladığında sistemin dilini seçer.")]
     [SerializeField] public bool GetSystemLanguage = true;
     [SerializeField] public MultiLangManagerUtils.LanguageCode DefaultLanguage = MultiLangManagerUtils.LanguageCode.EN_uk;
     [SerializeField] public MultiLangManagerUtils.LanguageCode ActiveLanguage = MultiLangManagerUtils.LanguageCode.EN_uk;
@@ -51,6 +53,8 @@ public class MultiLangManager : MonoBehaviour
     private bool loopCheck = false;
     public int error = 0;
 
+    private MultiLangManagerUtils.LanguageCode _ActiveLanguage = MultiLangManagerUtils.LanguageCode.EN_uk;
+
     private void Awake()
     {
         if (instance == null)
@@ -65,6 +69,16 @@ public class MultiLangManager : MonoBehaviour
     {
         this.PrepareVariables();
         this.PrepareFiles();
+        _ActiveLanguage = ActiveLanguage;
+    }
+
+    private void Update()
+    {
+        if(_ActiveLanguage != ActiveLanguage)
+        {
+            UpdateLanguageSettings(ActiveLanguage);
+            Notify();
+        }
     }
 
     private void PrepareVariables()
@@ -81,8 +95,10 @@ public class MultiLangManager : MonoBehaviour
     private void UpdateLanguageSettings(MultiLangManagerUtils.LanguageCode languageCode)
     {
         this.ActiveLanguage = (GetSystemLanguage) ? languageCode : this.ActiveLanguage;
+        this._ActiveLanguage = this.ActiveLanguage;
         this.CheckActiveLanguage();
         ReadAllValues();
+        Notify();
     }
 
     private void UpdateFileLocation()
@@ -169,5 +185,21 @@ public class MultiLangManager : MonoBehaviour
     public void SetUpdateCallback(Action callback)
     {
         UpdateCallback = callback;
+    }
+
+    public void AddObserver(IMultiLangObserver observer)
+    {
+        observers.Add(observer);
+        observer.OnNotify();
+    }
+
+    public void RemoveObserver(IMultiLangObserver observer)
+    {
+        observers.Remove(observer);
+    }
+
+    public void Notify()
+    {
+        foreach(var observer in observers) observer.OnNotify();
     }
 }
